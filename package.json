@@ -1,0 +1,30 @@
+{
+  "name": "schema-studio",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "tsx --test src/schema.test.ts src/workflow.test.ts"
+  },
+  "dependencies": {
+    "@codemirror/language": "^6.11.0",
+    "@uiw/react-codemirror": "^4.25.0",
+    "@xyflow/react": "^12.8.0",
+    "elkjs": "^0.11.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.0"
+  }
+}

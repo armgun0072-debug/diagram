@@ -1,0 +1,289 @@
+
+Table users {
+  id int [pk, increment]
+  email varchar [unique]
+  phone varchar [unique]
+  password_hash varchar
+  full_name varchar
+  avatar_url varchar
+  location_id int [ref: > locations.id]
+  active_role RoleType
+  is_kyc_verified boolean
+  trust_score int
+  rating_avg decimal
+  rating_count int
+  status UserStatus
+  suspended_until datetime
+  suspension_reason text
+  created_at datetime
+  updated_at datetime
+}
+
+Table user_roles {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  role_type RoleType
+  is_primary_role boolean
+  business_name varchar
+  license_number varchar
+  description text
+  status RoleStatus
+  is_verified boolean
+  created_at datetime
+
+  indexes {
+    (user_id, role_type) [unique]
+  }
+}
+
+Table role_verification_requests {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  requested_role RoleType
+  business_name varchar
+  license_number varchar
+  document_type VerificationDocType
+  document_url varchar
+  note text
+  status RequestStatus
+  reviewed_by_admin_id int [ref: > users.id]
+  admin_remark text
+  created_at datetime
+  reviewed_at datetime
+}
+
+Table regional_seasons {
+  id int [pk, increment]
+  region_code varchar [unique]
+  region_name varchar
+  provinces_summary text
+  popular_varieties varchar
+  harvest_period varchar
+  highlight_note text
+}
+
+Table locations {
+  id int [pk, increment]
+  province varchar
+  district varchar
+  region varchar
+  regional_season_id int [ref: > regional_seasons.id]
+
+  indexes {
+    (province, district) [unique]
+  }
+}
+
+Table durian_varieties {
+  id int [pk, increment]
+  name_th varchar [unique]
+  name_en varchar
+  icon_emoji varchar
+  description text
+  is_active boolean
+}
+
+Table durian_grades {
+  id int [pk, increment]
+  grade_code varchar [unique]
+  name_th varchar
+  description text
+}
+
+Table marketplace_posts {
+  id int [pk, increment]
+  user_id int [not null, ref: > users.id]
+  post_type PostType
+  variety_id int [ref: > durian_varieties.id]
+  grade_id int [ref: > durian_grades.id]
+  location_id int [not null, ref: > locations.id]
+  title varchar
+  content text
+  price decimal
+  price_per_kg decimal
+  price_unit PriceUnit
+  quantity_kg decimal
+  dry_matter_pct decimal
+  available_date date
+  is_price_outlier boolean
+  report_count int
+  view_count int
+  status PostStatus
+  created_at datetime
+  updated_at datetime
+}
+
+Table post_images {
+  id int [pk, increment]
+  post_id int [not null, ref: > marketplace_posts.id]
+  image_url varchar
+  sort_order int
+  created_at datetime
+}
+
+Table chat_rooms {
+  id int [pk, increment]
+  post_id int [not null, ref: > marketplace_posts.id]
+  initiator_id int [not null, ref: > users.id]
+  owner_id int [not null, ref: > users.id]
+  status ChatRoomStatus
+  last_message_at datetime
+  created_at datetime
+
+  indexes {
+    (post_id, initiator_id) [unique]
+  }
+}
+
+Table chat_messages {
+  id int [pk, increment]
+  room_id int [not null, ref: > chat_rooms.id]
+  sender_id int [not null, ref: > users.id]
+  message_type ChatMessageType
+  content text
+  is_read boolean
+  created_at datetime
+}
+
+Table daily_market_stats {
+  id int [pk, increment]
+  stat_date date
+  variety_id int [not null, ref: > durian_varieties.id]
+  grade_id int [not null, ref: > durian_grades.id]
+  location_id int [not null, ref: > locations.id]
+  avg_buy_price decimal
+  avg_sell_price decimal
+  min_price decimal
+  max_price decimal
+  avg_cut_wage_per_kg decimal
+  official_ref_price decimal
+  total_buy_volume_kg decimal
+  total_sell_volume_kg decimal
+  sample_post_count int
+  updated_at datetime
+
+  indexes {
+    (stat_date, variety_id, grade_id, location_id) [unique]
+  }
+}
+
+Table post_reports {
+  id int [pk, increment]
+  post_id int [not null, ref: > marketplace_posts.id]
+  reporter_id int [not null, ref: > users.id]
+  reason ReportReason
+  detail text
+  status RequestStatus
+  created_at datetime
+}
+
+Table deals {
+  id int [pk, increment]
+  post_id int [not null, ref: > marketplace_posts.id]
+  initiator_id int [not null, ref: > users.id]
+  receiver_id int [not null, ref: > users.id]
+  agreed_price decimal
+  agreed_price_per_kg decimal
+  agreed_quantity_kg decimal
+  cut_date date
+  note text
+  status DealStatus
+  created_at datetime
+  updated_at datetime
+}
+
+Table user_reviews {
+  id int [pk, increment]
+  deal_id int [not null, ref: > deals.id]
+  reviewer_id int [not null, ref: > users.id]
+  reviewee_id int [not null, ref: > users.id]
+  rating int
+  comment text
+  created_at datetime
+
+  indexes {
+    (deal_id, reviewer_id) [unique]
+  }
+}
+
+Enum RoleType {
+  SELLER
+  BUYER
+  CUTTER
+  ADMIN
+}
+
+Enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+Enum RoleStatus {
+  ACTIVE
+  PENDING_APPROVAL
+  REJECTED
+}
+
+Enum VerificationDocType {
+  GAP_CERTIFICATE
+  FARMER_BOOK
+  COMMERCIAL_LICENSE
+  CUTTER_CERT_OR_PORT
+  NATIONAL_ID_WITH_PIC
+}
+
+Enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum PostType {
+  SELL
+  BUY
+  CUT_SERVICE
+}
+
+Enum PriceUnit {
+  PER_KG
+  PER_TON
+  LUMP_SUM
+}
+
+Enum PostStatus {
+  OPEN
+  CLOSED
+  HIDDEN_BY_ADMIN
+}
+
+Enum ChatRoomStatus {
+  ACTIVE
+  DEAL_CLOSED
+  ARCHIVED
+}
+
+Enum ChatMessageType {
+  TEXT
+  PRODUCT_CARD
+  QUICK_REPLY
+  IMAGE
+}
+
+Enum ReportReason {
+  FAKE_PRICE
+  SPAM
+  SCAM
+  WRONG_INFO
+}
+
+Enum DealStatus {
+  PENDING
+  ACCEPTED
+  COMPLETED
+  DISPUTED
+  CANCELLED
+}
+
+
+Ref: "role_verification_requests"."id" ?<? "role_verification_requests"."license_number"
