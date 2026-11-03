@@ -260,3 +260,17 @@ test('relationship routes go around a blocking table and recompute after it move
   assert.notDeepEqual(moved.points, first.points);
   assert.ok(moved.points.every(p => Math.abs(p.y - 169) < 0.01));
 });
+
+test('multiple foreign keys targeting the same column merge into a centered corridor bus', () => {
+  const schema = parseSchema('Table users {\n id int [pk]\n}\nTable a {\n id int [pk]\n user_id int [ref: > users.id]\n}\nTable b {\n id int [pk]\n user_id int [ref: > users.id]\n admin_id int [ref: > users.id]\n}\nTable c {\n id int [pk]\n user_id int [ref: > users.id]\n}');
+  const positions = { users: { x: 0, y: 300 }, a: { x: 500, y: 0 }, b: { x: 500, y: 300 }, c: { x: 500, y: 650 } };
+  const routes = [...routeRelations(schema, positions).values()];
+  assert.equal(routes.length, 4);
+  for (const r of routes) {
+    assert.equal(r.targetHandle, 'in-right:id', 'all routes enter the facing side of users.id');
+    assert.equal(r.points.length, 4, 'each route uses a clean 3-segment step');
+    // Vertical trunk sits in the middle of the gap (between x=286 and x=484), not hugging table borders
+    assert.equal(r.points[1].x, 385);
+    assert.equal(r.points[2].x, 385);
+  }
+});

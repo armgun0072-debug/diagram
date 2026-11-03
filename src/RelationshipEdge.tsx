@@ -25,7 +25,7 @@ export default memo(function RelationshipEdge({ id, data, sourceX, sourceY, targ
   }
   return <>
     <title>{data.description}</title>
-    <path className="relationship-halo" d={path} fill="none" stroke="#0e181f" strokeWidth={6} strokeLinejoin="round" pointerEvents="none" />
+    {(data.hovered || selected) && <path className="relationship-halo" d={path} fill="none" stroke="#0e181f" strokeWidth={6} strokeLinejoin="round" pointerEvents="none" />}
     <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={16}
       label={data.hovered || selected ? label : undefined} labelX={labelX} labelY={labelY}
       labelStyle={{ fill: '#c9f4e1', fontSize: 11, fontFamily: 'monospace' }}
