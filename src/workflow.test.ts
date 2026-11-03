@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseSchema, SAMPLE } from './schema';
 import { emptyWorkflow, newFlowStep, parseWorkflow, referenceIssues, renameWorkflowTable, validateWorkflow } from './workflow';
-import { documentFromSource, importProject, persistDocument, PRE_WORKFLOW_BACKUP_KEY, preserveLegacyProject, projectFile, STORAGE_KEY } from './storage';
+import { blankDocument, decodeSharePayload, documentFromSource, encodeSharePayload, importProject, loadWorkspace, persistDocument, PRE_WORKFLOW_BACKUP_KEY, preserveLegacyProject, PROJECT_PREFIX, projectFile, projectFileName, projectMeta, PROJECTS_KEY, readProjectDocument, readProjectIndex, readShareHash, STORAGE_KEY, uniqueProjectName, writeProjectDocument, writeProjectIndex } from './storage';
 import { arrangeWorkflow } from './workflowLayout';
 
 function fixture() {
@@ -82,4 +82,55 @@ test('backup failure prevents overwriting the legacy project', () => {
   } };
   assert.throws(() => persistDocument(documentFromSource(SAMPLE), storage), /Quota/);
   assert.equal(writesToOriginal, 0);
+});
+
+function memoryStorage(initial: [string, string][] = []) {
+  const data = new Map(initial);
+  return { data, getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
+}
+
+test('first multi-project load migrates the legacy project without touching the legacy key', () => {
+  const legacy = JSON.stringify(projectFile(documentFromSource(SAMPLE, { customers: { x: 88, y: 99 } }, {}, 'pipeline', fixture())));
+  const storage = memoryStorage([[STORAGE_KEY, legacy]]);
+  const { index, doc } = loadWorkspace(storage);
+  assert.equal(index.projects.length, 1);
+  assert.equal(index.projects[0].name, 'My database');
+  assert.deepEqual(doc.positions.customers, { x: 88, y: 99 });
+  assert.equal(doc.workflow.nodes.length, 4);
+  assert.equal(storage.data.get(STORAGE_KEY), legacy);
+  assert.deepEqual(readProjectIndex(storage), index);
+  // Second load reads the index instead of migrating again.
+  assert.equal(loadWorkspace(storage).index.activeId, index.activeId);
+});
+
+test('projects are stored separately and corrupt entries fall back safely', () => {
+  const storage = memoryStorage();
+  const { index } = loadWorkspace(storage);
+  const blank = blankDocument();
+  writeProjectDocument('second01', blank, storage);
+  const next = { ...index, activeId: 'second01', projects: [...index.projects, projectMeta('second01', 'Second', blank)] };
+  writeProjectIndex(next, storage);
+  assert.equal(readProjectDocument('second01', storage).schema.tables.length, 0);
+  assert.equal(readProjectDocument(index.activeId, storage).schema.tables.length, 4);
+  assert.equal(writeProjectDocument('second01', blank, storage), false, 'identical data is not rewritten');
+  storage.setItem(PROJECT_PREFIX + 'second01', '{broken');
+  assert.equal(readProjectDocument('second01', storage).schema.tables.length, 0);
+  storage.setItem(PROJECTS_KEY, JSON.stringify({ version: 1, activeId: 'missing', projects: [{ id: '../bad', name: 'x' }, { id: 'second01', name: '  Second   copy ' }] }));
+  assert.deepEqual(readProjectIndex(storage)?.projects.map(p => [p.id, p.name]), [['second01', 'Second copy']]);
+  assert.equal(readProjectIndex(storage)?.activeId, 'second01');
+  assert.equal(uniqueProjectName(next, 'Second'), 'Second (2)');
+  assert.equal(projectFileName('ร้าน/ทุเรียน: v2', '.erd.json'), 'ร้าน-ทุเรียน-v2.erd.json');
+});
+
+test('share links roundtrip the whole project and reject tampered data', async () => {
+  const doc = documentFromSource(SAMPLE, { customers: { x: 5, y: 6 } }, { customers: '#ff0000' }, 'compact', fixture());
+  const payload = await encodeSharePayload('ร้านทุเรียน', doc);
+  assert.equal(readShareHash(`#share=${payload}`), payload);
+  assert.equal(readShareHash('#other'), null);
+  const shared = await decodeSharePayload(payload);
+  assert.equal(shared.name, 'ร้านทุเรียน');
+  assert.deepEqual(projectFile(shared.doc), projectFile(doc));
+  await assert.rejects(decodeSharePayload('z' + payload.slice(1, 20)));
+  await assert.rejects(decodeSharePayload('x' + payload.slice(1)));
+  await assert.rejects(decodeSharePayload('z<script>'));
 });

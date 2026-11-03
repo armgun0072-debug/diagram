@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ReactFlow, ReactFlowProvider, Background, BackgroundVariant, Controls, MiniMap, MarkerType, useReactFlow, type Connection, type NodeChange, type Edge } from '@xyflow/react';
-import { Archive, Code2, MousePointer2, Workflow, Plus, Download, Upload, Table2, ChevronRight, CircleHelp, Check, AlertCircle, Pencil, Trash2, Maximize, X, Database, Link2, HardDrive } from 'lucide-react';
+import { Archive, Code2, MousePointer2, Workflow, Plus, Download, Upload, Table2, ChevronRight, CircleHelp, Check, AlertCircle, Pencil, Trash2, Maximize, X, Database, Link2, HardDrive, Share2 } from 'lucide-react';
 import TableNode, { type TableFlowNode } from './TableNode';
 import TableEditor from './TableEditor';
 import SchemaEditor from './SchemaEditor';
 import TableAppearance from './TableAppearance';
 import ArrangeMenu from './ArrangeMenu';
 import FlowEditor from './FlowEditor';
+import ProjectMenu from './ProjectMenu';
 import { renameWorkflowTable, type Workflow as BusinessWorkflow } from './workflow';
 import type { LayoutAlgorithm } from './layoutOptions';
 import { tableColor, renameTableColor, type TableColors } from './appearance';
@@ -15,7 +16,7 @@ import { layoutSchema, TABLE_WIDTH } from './layout';
 import { useErRoutes } from './useErRoutes';
 import { connectionHandles } from './routing';
 import RelationshipEdge, { type RelationshipFlowEdge } from './RelationshipEdge';
-import { restoreDocument, projectFile, documentFromSource, importProject, persistDocument, readPreWorkflowBackup, type DocumentState } from './storage';
+import { projectFile, documentFromSource, importProject, readPreWorkflowBackup, loadWorkspace, writeProjectDocument, writeProjectIndex, readProjectDocument, removeProjectDocument, touchProject, projectMeta, newProjectId, uniqueProjectName, cleanProjectName, projectFileName, blankDocument, sampleDocument, encodeSharePayload, decodeSharePayload, readShareHash, SHARE_HASH_PREFIX, MAX_SHARE_URL_LENGTH, type DocumentState, type ProjectIndex } from './storage';
 
 const nodeTypes = { table: TableNode };
 const edgeTypes = { relationship: RelationshipEdge };
@@ -29,7 +30,12 @@ function saveFile(name: string, content: string, type = 'text/plain') {
 }
 
 export default function App() {
-  const [doc, setDoc] = useState<DocumentState>(restoreDocument);
+  const [workspace] = useState(() => loadWorkspace());
+  const [doc, setDoc] = useState<DocumentState>(workspace.doc);
+  const [projects, setProjects] = useState<ProjectIndex>(workspace.index);
+  const projectsRef = useRef(projects);
+  const docRef = useRef(doc);
+  docRef.current = doc;
   const [mode, setMode] = useState<'code' | 'visual'>('code');
   const [view, setView] = useState<'er' | 'flow'>('er');
   const [dragging, setDragging] = useState(false);
@@ -62,14 +68,26 @@ export default function App() {
     return () => cancelAnimationFrame(frame);
   }, [schema.tables, nodeMeasurements, fitView]);
 
+  const updateProjects = useCallback((change: (index: ProjectIndex) => ProjectIndex) => {
+    const next = change(projectsRef.current);
+    projectsRef.current = next; setProjects(next);
+    try { writeProjectIndex(next); } catch { setNotice('บันทึกรายการโปรเจกต์ในเบราว์เซอร์ไม่ได้'); }
+    return next;
+  }, []);
+  // Saves a document under the active project. Only touches the index when the data really changed.
+  const persistActive = useCallback((current: DocumentState) => {
+    const id = projectsRef.current.activeId;
+    if (writeProjectDocument(id, current)) updateProjects(index => touchProject(index, id, current));
+  }, [updateProjects]);
+
   useEffect(() => {
     setSaved(false);
     const id = setTimeout(() => {
-      try { persistDocument(doc); setSaved(true); }
+      try { persistActive(doc); setSaved(true); }
       catch { setNotice('บันทึกในเบราว์เซอร์ไม่ได้ กรุณาดาวน์โหลดโปรเจกต์เพื่อเก็บข้อมูล'); }
     }, 400);
     return () => clearTimeout(id);
-  }, [doc]);
+  }, [doc, persistActive]);
   useEffect(() => { if (!notice) return; const id = setTimeout(() => setNotice(''), 6000); return () => clearTimeout(id); }, [notice]);
   useEffect(() => () => { if (dragFrame.current !== null) cancelAnimationFrame(dragFrame.current); }, []);
 
@@ -263,16 +281,99 @@ export default function App() {
     if (commit({ ...schema, tables: schema.tables.filter(t => t.name !== selected), relations: schema.relations.filter(r => r.fromTable !== selected && r.toTable !== selected) }, positions, tableColors)) setSelected(null);
   }
 
+  // Clears transient canvas state before another document replaces the current one.
+  function resetView() {
+    ++layoutJob.current; setBusy(false);
+    if (dragFrame.current !== null) { cancelAnimationFrame(dragFrame.current); dragFrame.current = null; }
+    draggingRef.current = false; livePositionsRef.current = {}; setLivePositions(null); setDragging(false);
+    setSelected(null); setSelectedEdge(null); setHoveredEdge(null); setEditing(null);
+    initialFitDone.current = false;
+  }
+  // Writes the current document immediately so switching never loses the last 400 ms of edits.
+  function flushActive(): boolean {
+    try { persistActive(docRef.current); return true; }
+    catch { setNotice('บันทึกโปรเจกต์ปัจจุบันไม่ได้ จึงยังไม่สลับโปรเจกต์ กรุณาดาวน์โหลดโปรเจกต์เก็บไว้ก่อน'); return false; }
+  }
+  function openProject(id: string) {
+    if (id === projectsRef.current.activeId || !flushActive()) return;
+    const next = readProjectDocument(id);
+    resetView(); updateProjects(index => ({ ...index, activeId: id })); setDoc(next);
+  }
+  function addProject(name: string, next: DocumentState): boolean {
+    if (!flushActive()) return false;
+    const id = newProjectId();
+    try { writeProjectDocument(id, next); }
+    catch { setNotice('พื้นที่เก็บข้อมูลของเบราว์เซอร์เต็ม สร้างโปรเจกต์ใหม่ไม่ได้'); return false; }
+    resetView();
+    updateProjects(index => ({ ...index, activeId: id, projects: [...index.projects, projectMeta(id, uniqueProjectName(index, name), next)] }));
+    setDoc(next);
+    return true;
+  }
+  function createProject(kind: 'blank' | 'sample') {
+    if (addProject(kind === 'blank' ? 'โปรเจกต์ใหม่' : 'ตัวอย่าง StoreFront', kind === 'blank' ? blankDocument() : sampleDocument())) setNotice('สร้างโปรเจกต์ใหม่แล้ว');
+  }
+  function duplicateProject(id: string) {
+    const source = projectsRef.current.projects.find(p => p.id === id);
+    if (!source) return;
+    const copy = id === projectsRef.current.activeId ? docRef.current : readProjectDocument(id);
+    if (addProject(`${source.name} (สำเนา)`, copy)) setNotice(`ทำสำเนา “${source.name}” แล้ว`);
+  }
+  function renameProject(id: string, name: string) {
+    updateProjects(index => ({ ...index, projects: index.projects.map(p => p.id === id ? { ...p, name: cleanProjectName(name) } : p) }));
+  }
+  function deleteProject(id: string) {
+    const index = projectsRef.current;
+    if (index.projects.length <= 1) return;
+    const remaining = index.projects.filter(p => p.id !== id);
+    if (id === index.activeId) {
+      // Switch without saving the project being deleted.
+      const nextId = remaining[0].id;
+      resetView(); setDoc(readProjectDocument(nextId));
+      updateProjects(current => ({ ...current, activeId: nextId, projects: current.projects.filter(p => p.id !== id) }));
+    } else updateProjects(current => ({ ...current, projects: current.projects.filter(p => p.id !== id) }));
+    try { removeProjectDocument(id); } catch { /* the index no longer references it */ }
+    setNotice('ลบโปรเจกต์แล้ว');
+  }
+
+  async function shareProject() {
+    const name = projectsRef.current.projects.find(p => p.id === projectsRef.current.activeId)?.name ?? 'My database';
+    try {
+      const url = `${window.location.origin}${window.location.pathname}${SHARE_HASH_PREFIX}${await encodeSharePayload(name, docRef.current)}`;
+      if (url.length > MAX_SHARE_URL_LENGTH) { setNotice('โปรเจกต์ใหญ่เกินกว่าจะแชร์ผ่านลิงก์ กรุณากด “บันทึกโปรเจกต์” แล้วส่งไฟล์ .erd.json แทน'); return; }
+      try { await navigator.clipboard.writeText(url); setNotice('คัดลอกลิงก์แชร์แล้ว · ผู้รับจะได้สำเนาของโปรเจกต์ ณ ตอนนี้'); }
+      catch { window.prompt('คัดลอกลิงก์นี้เพื่อแชร์', url); }
+    } catch { setNotice('สร้างลิงก์แชร์ไม่สำเร็จ'); }
+  }
+
+  // Opening a #share= link imports a copy as a new local project, then clears the hash.
+  useEffect(() => {
+    let cancelled = false;
+    function importFromHash() {
+      const payload = readShareHash(window.location.hash);
+      if (!payload) return;
+      const clearHash = () => window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      void decodeSharePayload(payload).then(({ name, doc: shared }) => {
+        if (cancelled) return;
+        clearHash();
+        if (addProject(name, shared)) setNotice(`เปิดโปรเจกต์ที่แชร์มา “${name}” แล้ว · บันทึกเป็นโปรเจกต์ใหม่ในเครื่องนี้`);
+      }).catch(() => { if (!cancelled) { clearHash(); setNotice('ลิงก์แชร์ไม่ถูกต้องหรือข้อมูลไม่ครบ'); } });
+    }
+    importFromHash();
+    window.addEventListener('hashchange', importFromHash);
+    return () => { cancelled = true; window.removeEventListener('hashchange', importFromHash); };
+    // addProject reads refs, so the listener does not need to be re-registered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function loadFile(file?: File) {
     if (!file) return;
     try {
       if (file.size > 2_000_000) throw new Error('รองรับไฟล์ขนาดไม่เกิน 2 MB');
       const text = await file.text();
       const next = file.name.toLowerCase().endsWith('.json') ? importProject(text) : documentFromSource(text);
-      ++layoutJob.current; setBusy(false);
-      if (dragFrame.current !== null) { cancelAnimationFrame(dragFrame.current); dragFrame.current = null; }
-      draggingRef.current = false; livePositionsRef.current = {}; setLivePositions(null); setDragging(false);
-      setDoc(next); setSelected(null); setSelectedEdge(null); setHoveredEdge(null); setEditing(null);
+      resetView();
+      initialFitDone.current = true;
+      setDoc(next);
       setNotice('เปิดไฟล์แล้ว');
       setTimeout(() => void fitView({ padding: 0.18, duration: 300 }), 100);
     } catch (error) { setNotice(`เปิดไฟล์ไม่ได้: ${(error as Error).message}`); }
@@ -287,17 +388,18 @@ export default function App() {
   const columnCount = schema.tables.reduce((n, t) => n + t.columns.length, 0);
   const editingTable = schema.tables.find(t => t.name === editing);
   const selectedIndex = schema.tables.findIndex(t => t.name === selected);
+  const activeName = projects.projects.find(p => p.id === projects.activeId)?.name ?? 'My database';
   return <div className="app-shell">
     <header className="app-header">
       <a className="brand" href="./" aria-label="Schema Studio"><span className="brand-icon"><Workflow size={22} /></span><span>schema<span className="brand-light">studio</span><small>DATABASE DESIGN WORKSPACE</small></span></a>
-      <div className="project-name"><span className="header-divider" />Workspace<ChevronRight size={13} /><strong>My database</strong><span className="local-badge">LOCAL</span></div>
+      <div className="project-name"><span className="header-divider" /><span className="workspace-label">Workspace</span><ChevronRight size={13} className="workspace-label" /><ProjectMenu projects={projects} onOpen={openProject} onCreate={createProject} onRename={renameProject} onDuplicate={duplicateProject} onDelete={deleteProject} /><span className="local-badge">LOCAL</span></div>
       <div className="view-tabs" aria-label="ชนิดแผนภาพ"><button aria-pressed={view === 'er'} onClick={() => setView('er')}><Database size={15} />ER Diagram</button><button aria-pressed={view === 'flow'} onClick={() => setView('flow')}><Workflow size={15} />Flowchart</button></div>
       <div className="header-actions">{legacyBackup && <button className="icon-button" aria-label="ดาวน์โหลดสำรองก่อนอัปเดต" title="ดาวน์โหลดสำรองก่อนอัปเดต" onClick={() => saveFile('before-flowchart.erd.json', legacyBackup, 'application/json')}><Archive size={18} /></button>}<span className={`save-state ${saved ? '' : 'pending'}`}><span />{saved ? 'บันทึกในเครื่องแล้ว' : 'กำลังบันทึก…'}</span><button className="icon-button" aria-label="วิธีใช้งาน" title="วิธีใช้งาน" onClick={() => setHelp(true)}><CircleHelp size={19} /></button></div>
     </header>
 
     <div className="workspace-toolbar">
       {view === 'er' ? <div className="mode-switch" aria-label="โหมดการทำงาน"><button aria-pressed={mode === 'code'} className={mode === 'code' ? 'active' : ''} onClick={() => setMode('code')}><Code2 size={16} />Code Editor</button><button aria-pressed={mode === 'visual'} className={mode === 'visual' ? 'active' : ''} onClick={() => setMode('visual')}><MousePointer2 size={15} />Visual Designer</button></div> : <div className="flow-toolbar-label"><Workflow size={17} /><strong>Business Flowchart</strong><span>{doc.workflow.nodes.length} ขั้นตอน · อ้างอิง {schema.tables.length} ตาราง ER</span></div>}
-      <div className="toolbar-actions">{view === 'er' && <><ArrangeMenu algorithm={doc.layoutAlgorithm} busy={busy} disabled={!schema.tables.length} onSelect={algorithm => void autoLayout(algorithm)} /><span className="toolbar-divider" /></>}<button className="button subtle" onClick={() => fileInput.current?.click()}><Upload size={15} /><span>เปิดไฟล์</span></button><button className="button export-button" onClick={() => saveFile('my-database.erd.json', JSON.stringify(projectFile(doc), null, 2), 'application/json')}><Download size={15} /><span>บันทึกโปรเจกต์</span></button></div>
+      <div className="toolbar-actions">{view === 'er' && <><ArrangeMenu algorithm={doc.layoutAlgorithm} busy={busy} disabled={!schema.tables.length} onSelect={algorithm => void autoLayout(algorithm)} /><span className="toolbar-divider" /></>}<button className="button subtle" onClick={() => fileInput.current?.click()}><Upload size={15} /><span>เปิดไฟล์</span></button><button className="button subtle share-button" title="คัดลอกลิงก์ที่มีตารางและ Flowchart ของโปรเจกต์นี้" onClick={() => void shareProject()}><Share2 size={15} /><span>แชร์ลิงก์</span></button><button className="button export-button" onClick={() => saveFile(projectFileName(activeName, '.erd.json'), JSON.stringify(projectFile(doc), null, 2), 'application/json')}><Download size={15} /><span>บันทึกโปรเจกต์</span></button></div>
       <input ref={fileInput} type="file" hidden accept=".dbml,.json,.txt" onChange={event => { void loadFile(event.target.files?.[0]); event.target.value = ''; }} />
     </div>
 
@@ -308,7 +410,7 @@ export default function App() {
           <div className="editor-intro"><span className="tiny-dot" /> เขียนโครงสร้าง แล้วดู Diagram ได้ทันที</div>
           <div className="code-editor"><SchemaEditor source={doc.source} onChange={updateSource} /></div>
           <div className={`editor-status ${doc.error ? 'error' : ''}`} role="status">{doc.error ? <AlertCircle size={15} /> : <Check size={15} />}<span>{doc.error ?? 'โครงสร้างถูกต้อง พร้อมใช้งาน'}</span></div>
-          <button className="download-code" onClick={() => saveFile('schema.dbml', doc.source)}><Download size={14} />ดาวน์โหลดโค้ด .dbml<ChevronRight size={14} /></button>
+          <button className="download-code" onClick={() => saveFile(projectFileName(activeName, '.dbml'), doc.source)}><Download size={14} />ดาวน์โหลดโค้ด .dbml<ChevronRight size={14} /></button>
         </> : <>
           <div className="pane-header"><div><Database size={15} /><span>โครงสร้างฐานข้อมูล</span></div><span className="count-badge">{schema.tables.length}</span></div>
           <div className="visual-intro"><h2>ออกแบบด้วยการลาก</h2><p>ลากที่ชื่อตารางเพื่อย้ายตำแหน่ง<br />ลากจุดขวาของคอลัมน์ไปยังจุดซ้ายของคอลัมน์ที่อ้างอิง</p></div>
@@ -357,6 +459,8 @@ export default function App() {
         <li>เส้นเดินหลบตารางผ่านช่องว่าง ชี้เมาส์ที่เส้นเพื่อให้เส้นวิ่งและแสดงอัตราความสัมพันธ์</li>
         <li>เลือกจัดตำแหน่งได้ 4 แบบ: Left-right, Pipeline, Snowflake และ Compact จากเมนูจัดตำแหน่ง</li>
         <li>บันทึกโปรเจกต์เป็น JSON เก็บทั้งโค้ดและตำแหน่ง นำกลับเข้าด้วย “เปิดไฟล์”</li>
+        <li>หลายโปรเจกต์: กดชื่อโปรเจกต์ด้านบนเพื่อสลับ สร้างใหม่ เปลี่ยนชื่อ ทำสำเนา หรือลบ ทุกโปรเจกต์เก็บในเบราว์เซอร์เครื่องนี้</li>
+        <li>แชร์ลิงก์: คัดลอกลิงก์ที่บรรจุตาราง ตำแหน่ง สี และ Flowchart ผู้รับเปิดแล้วได้สำเนาเป็นโปรเจกต์ใหม่ (แก้ต่อแล้วต้องแชร์ลิงก์ใหม่)</li>
         <li>Flowchart: เพิ่มขั้นตอน/เงื่อนไข อ้างอิงตารางและคอลัมน์ ER แล้วลากเส้นกำหนดลำดับธุรกิจ บันทึกพร้อม ER ใน JSON เดียวกัน</li>
       </ul>
       <p className="muted">Visual จะจัดรูปแบบโค้ดใหม่และนำคอมเมนต์ออก โดยคง increment, Enum, indexes และความสัมพันธ์แบบ optional ไว้ แก้ข้อมูลเหล่านี้ใน Code Editor ยังไม่รองรับ DBML เต็มรูปแบบ เช่น Note, default, schema namespace และ composite foreign keys และยังไม่ตรวจสอบชนิดข้อมูลระหว่าง Foreign key กับปลายทาง</p>

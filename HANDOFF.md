@@ -1,18 +1,17 @@
 # ส่งต่องาน: Schema Studio
 
-อัปเดตล่าสุด: **2026-11-02 (Asia/Bangkok)**
+อัปเดตล่าสุด: **2026-11-03 (Asia/Bangkok)**
 
 เริ่มจาก [AGENTS.md](AGENTS.md) สำหรับกติกาการทำงาน แล้วใช้เอกสารนี้เลือกอ่านเฉพาะไฟล์ที่เกี่ยวข้อง รายละเอียดวิธีใช้มีใน [README.md](README.md) และประวัติงานมีใน [CHANGELOG.md](CHANGELOG.md)
 
 ## สถานะปัจจุบัน
 
-- แอป ER Diagram สำหรับ Windows รันในเครื่องด้วย React + TypeScript + Vite + React Flow + ELK.js และ CodeMirror
-- เป็น frontend ที่บันทึกใน `localStorage` ไม่มี backend, บัญชีผู้ใช้ หรือการเชื่อมต่อฐานข้อมูลจริง
+- แอป ER Diagram สำหรับ Windows และ Static Hosting (Netlify) รันด้วย React + TypeScript + Vite + React Flow + ELK.js และ CodeMirror
+- รองรับ **หลายโปรเจกต์ (Multi-project)** จัดเก็บแยกโปรเจกต์ใน `localStorage` สลับ สร้างใหม่ เปลี่ยนชื่อ ทำสำเนา และลบได้
+- รองรับการ **แชร์ลิงก์ (Share Link)** ผ่าน URL fragment (`#share=...`) บีบอัดข้อมูลแบบไร้ backend ผู้รับเปิดแล้วได้สำเนาเป็นโปรเจกต์ใหม่ในเครื่องตนเอง
 - มี Code Editor/Visual Designer และแท็บ **Business Flowchart** ที่อ้างอิงตาราง/คอลัมน์ ER พร้อมแก้ขั้นตอนและแขนงเงื่อนไขเอง
-- รองรับการ deploy บน **Netlify** ผ่าน `netlify.toml` (SPA redirect และ build publish ไปที่ `dist`) สามารถ deploy ด้วย Netlify Drop, Git หรือ CLI
-- งานโค้ดล่าสุดย้ายการคำนวณเส้นไป Web Worker แยก live drag state จากข้อมูลบันทึก และเพิ่ม Flowchart ตามแผนที่ผู้ใช้อนุมัติ
-- สำรอง source ก่อนแก้ไว้ที่ `backups/schema-studio-before-flowchart-2026-10-31.zip` ใน workspace นี้ (28 entries, SHA-256 อยู่ใน backups/README.md); ไม่ได้สำรองโปรไฟล์เบราว์เซอร์ผู้ใช้ และไม่พบ `.erd.json` ในรากตอนสำรอง
-- แอปเก็บ raw localStorage ก่อนเพิ่ม workflow เมื่อเปิดรุ่นใหม่ที่ origin เดิม พร้อมปุ่มดาวน์โหลด; ถ้าเก็บสำเนาไม่ได้จะไม่เขียนทับข้อมูลเดิม ข้อมูลของเบราว์เซอร์จริงต้องให้ผู้ใช้เปิดรุ่นใหม่/ดาวน์โหลดเอง
+- รองรับการ deploy บน **Netlify** ผ่าน `netlify.toml` (SPA redirect และ build publish ไปที่ `dist`)
+- อัปเกรดข้อมูลเก่าอัตโนมัติ: โปรเจกต์เดิมจะถูกย้ายเข้าสู่ multi-project index โดยไม่แตะต้องหรือเขียนทับ legacy key (`schema-studio:v1`)
 - ไม่มีงานโค้ดที่อนุมัติแล้วค้างอยู่จากเซสชันนี้
 - ก่อนเริ่มแก้งานถัดไป ต้องเสนอแผนและรอผู้ใช้ approve ตาม AGENTS
 
@@ -20,6 +19,8 @@
 
 | ส่วนงาน | สิ่งที่ใช้ได้แล้ว |
 | --- | --- |
+| จัดการหลายโปรเจกต์ | สลับโปรเจกต์, สร้างโปรเจกต์ว่าง/จากตัวอย่าง, เปลี่ยนชื่อ, ทำสำเนา, ลบโปรเจกต์ (ต้องเหลืออย่างน้อย 1), ดาวน์โหลดไฟล์ตั้งชื่อตามโปรเจกต์ |
+| แชร์ลิงก์ (Share Link) | บีบอัด schema + positions + colors + layout + workflow ด้วย Deflate-raw ลง URL Hash คัดลอกลงคลิปบอร์ด เปิดผ่านลิงก์แล้ว import เป็นโปรเจกต์ใหม่และเคลียร์ hash |
 | โค้ด ↔ Diagram | แปลง DBML subset เป็น schema; Visual แปลงกลับเป็นโค้ด; โค้ดผิดคง Diagram ที่อ่านสำเร็จล่าสุดและขึ้น PREVIEW PAUSED |
 | ตาราง | เพิ่ม แก้ชื่อ/คอลัมน์/flags ลบ ลากย้าย และเลือกตารางเพื่อซูมดู |
 | หัวตาราง | เลือกสีสำเร็จรูป/สีเอง/คืนค่าเดิม พื้นหลังเปลี่ยนเต็มพื้นที่ และปรับตัวอักษรดำ/ขาวให้อ่านชัด |
@@ -38,9 +39,10 @@
 
 | ต้องทำเรื่อง | ไฟล์ที่ควรอ่านก่อน |
 | --- | --- |
-| จัดการ state, สลับโหมด, event, import/export | [src/App.tsx](src/App.tsx) |
+| จัดการ state, สลับโหมด, event, import/export, share | [src/App.tsx](src/App.tsx) |
+| เมนูสลับ/สร้าง/แก้ชื่อ/ลบโปรเจกต์ | [src/ProjectMenu.tsx](src/ProjectMenu.tsx) |
 | ไวยากรณ์ DBML, validation, serialize และชนิดข้อมูลกลาง | [src/schema.ts](src/schema.ts) |
-| กู้คืน/บันทึกโปรเจกต์และความเข้ากันได้ของไฟล์เก่า | [src/storage.ts](src/storage.ts) |
+| กู้คืน/บันทึกโปรเจกต์, หลายโปรเจกต์, เข้ารหัส/ถอดรหัสแชร์ | [src/storage.ts](src/storage.ts) |
 | ตารางและจุดเชื่อมแต่ละคอลัมน์ | [src/TableNode.tsx](src/TableNode.tsx), [src/TableEditor.tsx](src/TableEditor.tsx) |
 | CodeMirror และ syntax highlighting | [src/SchemaEditor.tsx](src/SchemaEditor.tsx) |
 | สีหัวตารางและความเปรียบต่างตัวอักษร | [src/appearance.ts](src/appearance.ts), [src/TableAppearance.tsx](src/TableAppearance.tsx) |
@@ -50,7 +52,7 @@
 | ความลื่นขณะลาก/งาน worker/ผลคำนวณเก่า | [src/useErRoutes.ts](src/useErRoutes.ts), [src/routeWorker.ts](src/routeWorker.ts), [src/edgePath.ts](src/edgePath.ts), App.tsx |
 | โมเดลและข้อมูลอ้างอิงของ Business Flowchart | [src/workflow.ts](src/workflow.ts), [src/workflowLayout.ts](src/workflowLayout.ts) |
 | หน้า Flowchart/กล่อง/ฟอร์ม | [src/FlowEditor.tsx](src/FlowEditor.tsx), [src/FlowStepNode.tsx](src/FlowStepNode.tsx), [src/FlowStepEditor.tsx](src/FlowStepEditor.tsx) |
-| Flow validation, roundtrip และการสำรองข้อมูล | [src/workflow.test.ts](src/workflow.test.ts) |
+| Flow validation, multi-project, share link, roundtrip | [src/workflow.test.ts](src/workflow.test.ts) |
 | ชุดทดสอบที่รันด้วย npm test | [src/schema.test.ts](src/schema.test.ts) |
 | ตัวอย่างข้อมูลจริงสำหรับ regression | [examples/durian-marketplace.dbml](examples/durian-marketplace.dbml) |
 | คำสั่ง/แพ็กเกจ/การตั้งค่า/โฮสติ้ง | [package.json](package.json), [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [netlify.toml](netlify.toml) |
