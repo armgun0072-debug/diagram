@@ -16,7 +16,7 @@ import { layoutSchema, TABLE_WIDTH } from './layout';
 import { useErRoutes } from './useErRoutes';
 import { connectionHandles } from './routing';
 import RelationshipEdge, { type RelationshipFlowEdge } from './RelationshipEdge';
-import { projectFile, documentFromSource, importProject, readPreWorkflowBackup, loadWorkspace, writeProjectDocument, writeProjectIndex, readProjectDocument, removeProjectDocument, touchProject, projectMeta, newProjectId, uniqueProjectName, cleanProjectName, projectFileName, blankDocument, sampleDocument, encodeSharePayload, decodeSharePayload, readShareHash, SHARE_HASH_PREFIX, MAX_SHARE_URL_LENGTH, type DocumentState, type ProjectIndex } from './storage';
+import { projectFile, documentFromSource, importProject, readPreWorkflowBackup, loadWorkspace, writeProjectDocument, writeProjectIndex, readProjectDocument, removeProjectDocument, touchProject, projectMeta, newProjectId, uniqueProjectName, cleanProjectName, projectFileName, blankDocument, sampleDocument, encodeSharePayload, decodeSharePayload, readShareHash, shortenUrl, SHARE_HASH_PREFIX, MAX_SHARE_URL_LENGTH, type DocumentState, type ProjectIndex } from './storage';
 
 const nodeTypes = { table: TableNode };
 const edgeTypes = { relationship: RelationshipEdge };
@@ -340,8 +340,15 @@ export default function App() {
     try {
       const url = `${window.location.origin}${window.location.pathname}${SHARE_HASH_PREFIX}${await encodeSharePayload(name, docRef.current)}`;
       if (url.length > MAX_SHARE_URL_LENGTH) { setNotice('โปรเจกต์ใหญ่เกินกว่าจะแชร์ผ่านลิงก์ กรุณากด “บันทึกโปรเจกต์” แล้วส่งไฟล์ .erd.json แทน'); return; }
-      try { await navigator.clipboard.writeText(url); setNotice('คัดลอกลิงก์แชร์แล้ว · ผู้รับจะได้สำเนาของโปรเจกต์ ณ ตอนนี้'); }
-      catch { window.prompt('คัดลอกลิงก์นี้เพื่อแชร์', url); }
+      setNotice('กำลังเตรียมลิงก์แชร์…');
+      const finalUrl = await shortenUrl(url);
+      const isShort = finalUrl !== url;
+      try {
+        await navigator.clipboard.writeText(finalUrl);
+        setNotice(isShort ? 'คัดลอกลิงก์สั้นแล้ว! นำไปส่งแชร์ได้ทันที' : 'คัดลอกลิงก์แชร์แล้ว · ผู้รับจะได้สำเนาของโปรเจกต์ ณ ตอนนี้');
+      } catch {
+        window.prompt('คัดลอกลิงก์นี้เพื่อแชร์', finalUrl);
+      }
     } catch { setNotice('สร้างลิงก์แชร์ไม่สำเร็จ'); }
   }
 

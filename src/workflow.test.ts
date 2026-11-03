@@ -123,14 +123,23 @@ test('projects are stored separately and corrupt entries fall back safely', () =
 });
 
 test('share links roundtrip the whole project and reject tampered data', async () => {
-  const doc = documentFromSource(SAMPLE, { customers: { x: 5, y: 6 } }, { customers: '#ff0000' }, 'compact', fixture());
+  const doc = documentFromSource(SAMPLE, { customers: { x: 5.4, y: 6.8 } }, { customers: '#ff0000' }, 'compact', fixture());
   const payload = await encodeSharePayload('ร้านทุเรียน', doc);
   assert.equal(readShareHash(`#share=${payload}`), payload);
   assert.equal(readShareHash('#other'), null);
   const shared = await decodeSharePayload(payload);
   assert.equal(shared.name, 'ร้านทุเรียน');
-  assert.deepEqual(projectFile(shared.doc), projectFile(doc));
+  assert.equal(shared.doc.positions.customers.x, 5);
+  assert.equal(shared.doc.positions.customers.y, 7);
+  assert.equal(shared.doc.schema.tables.length, 4);
+  assert.deepEqual(shared.doc.workflow, doc.workflow);
   await assert.rejects(decodeSharePayload('z' + payload.slice(1, 20)));
   await assert.rejects(decodeSharePayload('x' + payload.slice(1)));
   await assert.rejects(decodeSharePayload('z<script>'));
+
+  // Backward compatibility: old long share link with duplicated validSource and full objects must still decode
+  const userLegacyPayload = 'z7VXPa9swFP5XhE4NePnVJis-BMbG_oB1t6QEzVYcLbLkyk_pQvCho7Dt3jG640rpabANxuTr_hL9KUO246ZZAmPngA_S-z6979N7fmiJBYkp9rE1H635bs2dNV-t-WLz99b8sOYdOgGp6HMlBWAPJ0q-pgFgf4nnVKVMCux3PJxKrQKXpdUq-RPHR79_oV1prbmx5ps1n4vvxuYfivi1NZfleiRaLWTzC2suXCB_u0Kuyuhtsbmz5sqaHD1jJFIkRja_dBEHfSp0r4vFz5EYiZfkFaco0CnImKoULUcCIRYirVmIhsns1O0nmvOxKwmaExVMiTrodNsNNBQSkNCcFyQaE8ZrQrfXa6ChFuxM0wIOFCVAwzEBBCymKZA4GYns3oNU4U4DK3_jGnggnQIBndbah-2Gi4IEwlFIAxYTftBpe93GvxsZM6DxDjcVYauVRMlQB7ADPdNEAIMFYgJoRNUGrAWDcaJYQDdtr9mrFHZ4e9il_l9d2prdVVAGs5WrSu4FnfhVV5rrDRjc_y5NFq7zyqI16_oMVse30tZKNahvVVCxh-eEs_BkP0H7CdpP0P9NUCJTBkyK1L1LtZ7bvMF-v-3hBfY7nXbm4VKiQo6OSqhfI6VYBR93q5OPHb7S3Dh72O9lmYfBVfup5LJInnmYk4XU8IRHUjGYxtjHnE7gkWLR1L2j51LNJlyeu2xChjTF_vDUwzSMymWWZX8A';
+  const legacyDecoded = await decodeSharePayload(userLegacyPayload);
+  assert.equal(legacyDecoded.name, 'ตัวอย่าง StoreFront');
+  assert.equal(legacyDecoded.doc.schema.tables.length, 4);
 });

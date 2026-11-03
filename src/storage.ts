@@ -180,8 +180,47 @@ async function transform(bytes: Uint8Array<ArrayBuffer>, stream: CompressionStre
   const output = new Blob([bytes]).stream().pipeThrough(stream);
   return new Uint8Array(await new Response(output).arrayBuffer());
 }
+export function compactProjectFile(doc: DocumentState) {
+  const project: Record<string, unknown> = { version: 1, source: doc.source };
+  if (doc.validSource !== doc.source) project.validSource = doc.validSource;
+  if (doc.positions && Object.keys(doc.positions).length > 0) {
+    const compactPositions: Positions = {};
+    for (const [k, v] of Object.entries(doc.positions)) {
+      compactPositions[k] = { x: Math.round(v.x), y: Math.round(v.y) };
+    }
+    project.positions = compactPositions;
+  }
+  if (doc.tableColors && Object.keys(doc.tableColors).length > 0) {
+    project.tableColors = doc.tableColors;
+  }
+  if (doc.layoutAlgorithm && doc.layoutAlgorithm !== 'left-right') {
+    project.layoutAlgorithm = doc.layoutAlgorithm;
+  }
+  if (doc.workflow && (doc.workflow.nodes.length > 0 || doc.workflow.edges.length > 0)) {
+    project.workflow = doc.workflow;
+  }
+  return project;
+}
+
+export async function shortenUrl(longUrl: string): Promise<string> {
+  try {
+    const res = await fetch('/.netlify/functions/shorten', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: longUrl }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && typeof data.shortUrl === 'string' && data.shortUrl.startsWith('http')) {
+        return data.shortUrl;
+      }
+    }
+  } catch { /* Network error, offline or non-Netlify environment */ }
+  return longUrl;
+}
+
 export async function encodeSharePayload(name: string, doc: DocumentState): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify({ name: cleanProjectName(name), project: projectFile(doc) }));
+  const bytes = new TextEncoder().encode(JSON.stringify({ name: cleanProjectName(name), project: compactProjectFile(doc) }));
   if (typeof CompressionStream === 'function') return 'z' + toBase64Url(await transform(bytes, new CompressionStream('deflate-raw')));
   return 'j' + toBase64Url(bytes);
 }
@@ -213,7 +252,7 @@ export function importProject(raw: string): DocumentState {
   const workflow = parseWorkflow('workflow' in data ? data.workflow : undefined);
   try { return documentFromSource(data.source, positions, tableColors, layoutAlgorithm, workflow); }
   catch (error) {
-    if (!('validSource' in data) || typeof data.validSource !== 'string') throw error;
-    return { ...documentFromSource(data.validSource, positions, tableColors, layoutAlgorithm, workflow), source: data.source, error: (error as Error).message };
+    const validSource = 'validSource' in data && typeof data.validSource === 'string' ? data.validSource : data.source;
+    return { ...documentFromSource(validSource, positions, tableColors, layoutAlgorithm, workflow), source: data.source, error: (error as Error).message };
   }
 }

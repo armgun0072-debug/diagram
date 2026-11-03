@@ -20,7 +20,7 @@
 | ส่วนงาน | สิ่งที่ใช้ได้แล้ว |
 | --- | --- |
 | จัดการหลายโปรเจกต์ | สลับโปรเจกต์, สร้างโปรเจกต์ว่าง/จากตัวอย่าง, เปลี่ยนชื่อ, ทำสำเนา, ลบโปรเจกต์ (ต้องเหลืออย่างน้อย 1), ดาวน์โหลดไฟล์ตั้งชื่อตามโปรเจกต์ |
-| แชร์ลิงก์ (Share Link) | บีบอัด schema + positions + colors + layout + workflow ด้วย Deflate-raw ลง URL Hash คัดลอกลงคลิปบอร์ด เปิดผ่านลิงก์แล้ว import เป็นโปรเจกต์ใหม่และเคลียร์ hash |
+| แชร์ลิงก์ (Share Link) | บีบอัด schema + positions + colors + layout + workflow แบบกระชับ (ตัด duplicate validSource และ empty objects) แปลงเป็น Deflate-raw URL Hash พร้อม Netlify Function (`shorten.js`) ย่อเป็นลิงก์สั้นจิ๋วอัตโนมัติ คัดลอกลงคลิปบอร์ด เปิดผ่านลิงก์แล้ว import เป็นโปรเจกต์ใหม่และเคลียร์ hash |
 | โค้ด ↔ Diagram | แปลง DBML subset เป็น schema; Visual แปลงกลับเป็นโค้ด; โค้ดผิดคง Diagram ที่อ่านสำเร็จล่าสุดและขึ้น PREVIEW PAUSED |
 | ตาราง | เพิ่ม แก้ชื่อ/คอลัมน์/flags ลบ ลากย้าย และเลือกตารางเพื่อซูมดู |
 | หัวตาราง | เลือกสีสำเร็จรูป/สีเอง/คืนค่าเดิม พื้นหลังเปลี่ยนเต็มพื้นที่ และปรับตัวอักษรดำ/ขาวให้อ่านชัด |
@@ -55,7 +55,7 @@
 | Flow validation, multi-project, share link, roundtrip | [src/workflow.test.ts](src/workflow.test.ts) |
 | ชุดทดสอบที่รันด้วย npm test | [src/schema.test.ts](src/schema.test.ts) |
 | ตัวอย่างข้อมูลจริงสำหรับ regression | [examples/durian-marketplace.dbml](examples/durian-marketplace.dbml) |
-| คำสั่ง/แพ็กเกจ/การตั้งค่า/โฮสติ้ง | [package.json](package.json), [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [netlify.toml](netlify.toml) |
+| คำสั่ง/แพ็กเกจ/การตั้งค่า/โฮสติ้ง/ย่อลิงก์ | [package.json](package.json), [vite.config.ts](vite.config.ts), [tsconfig.json](tsconfig.json), [netlify.toml](netlify.toml), [netlify/functions/shorten.js](netlify/functions/shorten.js) |
 
 ## ข้อมูลไหลอย่างไร
 
