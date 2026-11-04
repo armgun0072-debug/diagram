@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { parseSchema, serializeSchema, relationLabel, SAMPLE } from './schema';
+import { parseSchema, serializeSchema, relationLabel, relationCardinalities, SAMPLE } from './schema';
 import { layoutSchema, TABLE_WIDTH, tableHeight } from './layout';
 import { documentFromSource, projectFile, importProject } from './storage';
 import { cleanTableColors, renameTableColor, tableColor } from './appearance';
@@ -218,6 +218,40 @@ test('Snowflake places the most connected table at the center of its neighbors',
   const xs = [p.a.x, p.b.x, p.c.x], ys = [p.a.y, p.b.y, p.c.y];
   assert.ok(Math.abs(xs.reduce((a, b) => a + b, 0) / 3 - p.hub.x) < 0.01);
   assert.ok(Math.abs(ys.reduce((a, b) => a + b, 0) / 3 - p.hub.y) < 0.01);
+});
+
+test('Flowchart orders branches by parent position, preserves cycles and saves its preference', async () => {
+  const schema = parseSchema('Table a {\n id int\n}\nTable b {\n id int\n}\nTable child_b {\n id int\n parent_id int [ref: > b.id]\n}\nTable child_a {\n id int\n parent_id int [ref: > a.id]\n}\nTable leaf {\n parent_id int [ref: > child_a.id]\n}\nTable isolated {\n id int\n}');
+  const snapshot = structuredClone(schema);
+  const p = await layoutSchema(schema, 'flowchart');
+  assert.ok(p.a.x < p.child_a.x && p.child_a.x < p.leaf.x);
+  assert.ok(p.b.x < p.child_b.x);
+  assert.ok(p.a.y < p.b.y && p.child_a.y < p.child_b.y, 'branches follow their parents rather than declaration order');
+  assert.deepEqual(schema, snapshot);
+  const cycle = parseSchema('Table a {\n id int\n b_id int [ref: > b.id]\n}\nTable b {\n id int\n a_id int [ref: > a.id]\n}\nTable self {\n id int\n parent_id int [ref: > self.id]\n}');
+  const q = await layoutSchema(cycle, 'flowchart');
+  assert.equal(q.a.x, q.b.x);
+  assert.ok(Math.abs(q.a.y - q.b.y) >= tableHeight(2));
+  assert.ok(Number.isFinite(q.self.x));
+  const doc = documentFromSource(SAMPLE, {}, {}, 'flowchart');
+  assert.deepEqual(importProject(JSON.stringify(projectFile(doc))), doc);
+});
+
+test('endpoint cardinalities stay attached to their tables when routing reverses or loops', () => {
+  for (const kind of ['>', '-', '<>'] as const) {
+    for (const optional of [false, true]) {
+      const relation = { fromTable: 'child', fromColumn: 'id', toTable: 'parent', toColumn: 'id', kind, fromOptional: optional, toOptional: optional };
+      const expected = { source: `${optional ? '0..' : ''}${kind === '-' ? '1' : 'N'}`, target: `${optional ? '0..' : ''}${kind === '<>' ? 'N' : '1'}` };
+      const schema = parseSchema('Table child {\n id int\n}\nTable parent {\n id int\n}');
+      schema.relations = [relation];
+      for (const positions of [{ child: { x: 0, y: 0 }, parent: { x: 600, y: 0 } }, { child: { x: 600, y: 0 }, parent: { x: 0, y: 0 } }]) {
+        assert.equal([...routeRelations(schema, positions).values()][0].blocked, false);
+        assert.deepEqual(relationCardinalities(schema.relations[0]), expected);
+      }
+      const loop = { ...relation, toTable: 'child' };
+      assert.deepEqual(relationCardinalities(loop), expected);
+    }
+  }
 });
 
 test('layout preference survives project export, invalid drafts and legacy imports', () => {

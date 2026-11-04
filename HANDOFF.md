@@ -1,6 +1,6 @@
 # ส่งต่องาน: Schema Studio
 
-อัปเดตล่าสุด: **2026-11-03 (Asia/Bangkok)**
+อัปเดตล่าสุด: **2026-11-05 (Asia/Bangkok)**
 
 เริ่มจาก [AGENTS.md](AGENTS.md) สำหรับกติกาการทำงาน แล้วใช้เอกสารนี้เลือกอ่านเฉพาะไฟล์ที่เกี่ยวข้อง รายละเอียดวิธีใช้มีใน [README.md](README.md) และประวัติงานมีใน [CHANGELOG.md](CHANGELOG.md)
 
@@ -24,11 +24,11 @@
 | โค้ด ↔ Diagram | แปลง DBML subset เป็น schema; Visual แปลงกลับเป็นโค้ด; โค้ดผิดคง Diagram ที่อ่านสำเร็จล่าสุดและขึ้น PREVIEW PAUSED |
 | ตาราง | เพิ่ม แก้ชื่อ/คอลัมน์/flags ลบ ลากย้าย และเลือกตารางเพื่อซูมดู |
 | หัวตาราง | เลือกสีสำเร็จรูป/สีเอง/คืนค่าเดิม พื้นหลังเปลี่ยนเต็มพื้นที่ และปรับตัวอักษรดำ/ขาวให้อ่านชัด |
-| ความสัมพันธ์ | แสดง N : 1, 1 : 1, N : N และ optional; จุดเชื่อมสลับด้านตามตำแหน่ง; Visual สร้าง N : 1 |
+| ความสัมพันธ์ | ป้าย 1/N/0..1/0..N ที่ปลายเส้นทั้งสองด้านแสดงเสมอ รวม preview ขณะลาก; ป้ายผูกกับข้อมูลแม้สลับฝั่ง จุดเชื่อมสลับด้านตามตำแหน่ง; Visual สร้าง N : 1 |
 | การเดินเส้น | A* บนช่องแนวนอน/แนวตั้ง หลบกรอบตาราง เลือกหักมุมกึ่งกลางช่องว่าง (Center-corridor) รวมสายที่มีคอลัมน์ปลายทางเดียวกันเป็นเส้นแกนกลาง (Target Bus Merging) และแยกช่องขนานสำหรับความสัมพันธ์คนละปลายทาง |
 | การชี้เส้น | เส้นที่ชี้เป็นสีเขียวและเส้นประวิ่ง ยกขึ้นด้านหน้า พร้อมป้าย cardinality; เลื่อนเมาส์ออกแล้วหยุด |
-| จัดตำแหน่ง | Left-right ด้วย ELK.js; Pipeline แบ่งขั้น dependency; Snowflake กระจายรอบ hub; Compact วางเป็นกลุ่มกระชับ |
-| เมนูจัดตำแหน่ง | มีคำอธิบาย ตัวเลือกที่ใช้อยู่ คีย์บอร์ดลูกศร/Escape และปุ่ม 1–4 ขณะเปิดเมนู |
+| จัดตำแหน่ง | Left-right ด้วย ELK.js; Pipeline แบ่งขั้น dependency; Snowflake กระจายรอบ hub; Compact วางเป็นกลุ่มกระชับ; Flowchart ซ้าย → ขวา จัดแขนงตามแนวตารางแม่ รองรับวงจรและตารางแยก |
+| เมนูจัดตำแหน่ง | มีคำอธิบาย ตัวเลือกที่ใช้อยู่ คีย์บอร์ดลูกศร/Escape และปุ่ม 1–5 ขณะเปิดเมนู |
 | การเก็บงาน | บันทึกอัตโนมัติในเบราว์เซอร์; JSON เก็บโค้ด ตำแหน่ง สี และรูปแบบจัดวาง; ส่งออก/นำเข้า DBML subset ได้ |
 | ปัญหาที่แก้แล้ว | เก็บขนาดตารางที่วัดไว้เพื่อไม่ให้ตาราง/เส้นหายวูบขณะลาก; แยก CodeMirror จากการวาด Diagram ซ้ำ; รอขนาดครบก่อน fit โปรเจกต์ที่กู้คืน |
 | การลากลื่นขึ้น | ระหว่างลากอัปเดต live positions ไม่ serialize เอกสารทุก event; ใช้เส้น preview แล้วคำนวณละเอียดหลังปล่อยใน worker; ไม่สะสมงานเก่า |
@@ -46,7 +46,7 @@
 | ตารางและจุดเชื่อมแต่ละคอลัมน์ | [src/TableNode.tsx](src/TableNode.tsx), [src/TableEditor.tsx](src/TableEditor.tsx) |
 | CodeMirror และ syntax highlighting | [src/SchemaEditor.tsx](src/SchemaEditor.tsx) |
 | สีหัวตารางและความเปรียบต่างตัวอักษร | [src/appearance.ts](src/appearance.ts), [src/TableAppearance.tsx](src/TableAppearance.tsx) |
-| จัดตำแหน่งตารางทั้ง 4 แบบ | [src/layout.ts](src/layout.ts), [src/layoutOptions.ts](src/layoutOptions.ts), [src/ArrangeMenu.tsx](src/ArrangeMenu.tsx) |
+| จัดตำแหน่งตารางทั้ง 5 แบบ | [src/layout.ts](src/layout.ts), [src/layoutOptions.ts](src/layoutOptions.ts), [src/ArrangeMenu.tsx](src/ArrangeMenu.tsx) |
 | เส้นหลบตารางและการเลือกฝั่งจุดเชื่อม | [src/obstacleRouting.ts](src/obstacleRouting.ts), [src/routing.ts](src/routing.ts) |
 | วาดเส้น ป้าย ช่องว่างที่จุดตัด และ hover | [src/RelationshipEdge.tsx](src/RelationshipEdge.tsx), [src/styles.css](src/styles.css) |
 | ความลื่นขณะลาก/งาน worker/ผลคำนวณเก่า | [src/useErRoutes.ts](src/useErRoutes.ts), [src/routeWorker.ts](src/routeWorker.ts), [src/edgePath.ts](src/edgePath.ts), App.tsx |
@@ -85,6 +85,7 @@
 - Visual จัดรูปแบบโค้ดใหม่และนำคอมเมนต์ออก แต่ต้องเก็บ Enum/indexes/increment/optional refs ไว้ เปลี่ยนชื่อคอลัมน์ใน Visual จะลบ refs ที่อ้างชื่อเดิม; index ที่อ้างคอลัมน์นั้นต้องแก้ในโค้ดด้วย
 - เส้นเป็นข้อมูลสำหรับภาพ ไม่ตรวจว่า FK กับปลายทางชนิดเดียวกัน หรือปลายทาง unique จริง ตัวอย่างมี self-reference จาก `license_number` ไป `id` ซึ่งเก็บตามต้นฉบับ
 - **กราฟหนาแน่นยังมีจุดตัดได้** และเส้นที่เข้าคอลัมน์เดียวกันอาจใช้ช่วงสั้นร่วมกัน ระบบลดช่วงซ้อนและเว้นช่องว่างที่จุดตัด ไม่ได้รับประกันกราฟไม่มีจุดตัดทั้งหมด
+- โหมดจัดตำแหน่ง ER `flowchart` อิง FK ไม่ได้อนุมานลำดับธุรกิจ ป้ายปลายเส้นร่วมอาจซ้อนกันและเล็กตามระดับซูมเมื่อ fit กราฟใหญ่; ซูมเข้าเพื่ออ่านรายละเอียด
 - ถ้าลากตารางชิด/ซ้อนจนเดินเส้นไม่ได้ route จะเป็น `blocked` และมีข้อความให้จัดตำแหน่งใหม่ ไม่วาดเส้นทะลุตารางแทน
 - ชุดข้อมูลจริงที่ใช้ตรวจมี 15 ตาราง/142 คอลัมน์/27 ความสัมพันธ์/12 Enum/5 indexes ยังไม่มีผลรับรองประสิทธิภาพกับกราฟขนาดใหญ่มาก
 - ไม่มี Undo/Redo, SQL export, PNG/SVG export, cloud sync, backend หรือ authentication
@@ -105,19 +106,18 @@
 
 ## ผลตรวจล่าสุดที่มีอยู่
 
-ผลต่อไปนี้ตรวจเมื่อ **2026-11-04**:
+ผลต่อไปนี้ตรวจเมื่อ **2026-11-05**; ผลตรวจรอบก่อนดู CHANGELOG:
 
 | การตรวจ | ผลที่บันทึกไว้ |
 | --- | --- |
-| `npm.cmd test` | ผ่าน 41 tests (รวม parser/serializer, 4 layouts, obstacle routing + target bus merging, Business Flow, multi-project workspace และ share links) |
+| `npm.cmd test` | ผ่าน 45 tests รวม 5 layouts, branch order/วงจร/JSON roundtrip, cardinality สลับฝั่ง และ regression เดิม; ต้องรันนอก sandbox เพราะ `uv_os_get_passwd ENOMEM` ก่อนเริ่มทดสอบ |
 | `npm.cmd run build` | TypeScript + Vite ผ่าน มี warning เรื่อง chunk ใหญ่กว่า 500 kB; ELK.js แยกโหลดตามการใช้งาน |
-| Chrome headless | ทดสอบ multi-project CRUD, แชร์ลิงก์และการเปิดในเบราว์เซอร์ใหม่, วาด ER 4 ตารางและ 15 ตาราง (27 เส้น) ตรวจ SVG กับ DOM จริงไม่พบการผ่าตัวตาราง (0 collisions) เส้นรวมเข้าแกนกลางช่องว่างไม่อ้อมกรอบนอก |
-| ตรวจ SVG กับตำแหน่ง DOM | เส้น 27 เส้นไม่ผ่านตัวตาราง, เฉพาะเส้นที่ชี้มี animation และหยุดเมื่อออก, ลากตารางอื่นมาขวางแล้วเปลี่ยนทางได้ |
-| Worker | แก้ schema รัวแล้วรับผลล่าสุด ไม่มีเส้นจาก schema เก่าค้าง; ปิด Worker จำลองแล้ว fallback/กลับโหมดปกติผ่าน |
-| Benchmark ลาก 32 ช่วง | ก่อน: 3,011 ms, p95 frame 100.1 ms, max 127.8 ms; หลัง: 986 ms, p95 5.7 ms, max 22.2 ms บน Chrome headless ของเครื่องนี้ ไม่ใช่คำรับประกัน FPS บนเครื่องอื่น |
-| จอแคบ | ที่ 390×844 header ไม่ล้น และพื้นที่ Flowchart ยังใช้งานได้ |
+| Chrome headless | โปรไฟล์ทดสอบแยก: เมนู 5 ตัวเลือก/ปุ่มลัด 5, ตารางหลักอยู่ซ้าย, ลากลูกข้ามฝั่งป้ายยังถูกต้อง, 1:1/N:N/optional/self-reference ผ่าน ไม่พบ runtime exceptions |
+| ตรวจป้ายกับ DOM | ชุด 15 ตาราง/27 เส้นมีป้ายครบสองปลาย ไม่ทับตัวตาราง; ตรวจภาพ `.qa/flowchart-endpoints.png` แล้ว ป้ายย่อตามระดับซูม |
+| `git diff --check` | ผ่าน |
+| ยังไม่ได้ตรวจซ้ำรอบนี้ | มือถือ, worker fallback และ benchmark การลาก; ผลเดิมเป็นประวัติ ไม่ใช่ผลใหม่ |
 
-สำเนา raw legacy ถูกตรวจในโปรไฟล์ทดสอบว่าเก็บตรงทุก byte และยังอยู่หลัง import/rename/delete; ไม่ได้เข้าถึง localStorage ของ Chrome โปรไฟล์จริงของผู้ใช้
+รอบนี้ไม่เข้าถึง localStorage ของ Chrome โปรไฟล์จริงของผู้ใช้ และไม่เปลี่ยน storage/schema/obstacle router หรือขนาดตาราง
 
 `.qa/` เป็นสคริปต์และภาพตรวจเฉพาะเซสชัน ถูก ignore และอาจไม่อยู่ในโปรเจกต์ที่ส่งต่อ บางไฟล์อ้างพาธ Windows และ Chrome/CDP port เฉพาะเครื่อง ไม่ใช่ browser test suite ที่ตั้งค่าพร้อมใช้บนทุกเครื่อง ผลการตรวจครั้งถัดไปต้องระบุสิ่งที่รันได้จริง
 

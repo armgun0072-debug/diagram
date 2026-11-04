@@ -9,6 +9,7 @@ export const tableHeight = (columnCount: number) => 52 + columnCount * 34;
 export async function layoutSchema(schema: Schema, algorithm: LayoutAlgorithm = 'left-right'): Promise<Positions> {
   if (!schema.tables.length) return {};
   if (algorithm === 'pipeline') return pipelineLayout(schema);
+  if (algorithm === 'flowchart') return pipelineLayout(schema, true);
   if (algorithm === 'snowflake') return snowflakeLayout(schema);
   if (algorithm === 'compact') return compactLayout(schema);
   // Load the larger layout engine only when the user requests a layout.
@@ -47,7 +48,7 @@ function compactLayout(schema: Schema): Positions {
   return Object.fromEntries(entries);
 }
 
-function pipelineLayout(schema: Schema): Positions {
+function pipelineLayout(schema: Schema, flowchart = false): Positions {
   const neighbors = new Map(schema.tables.map(table => [table.name, new Set<string>()]));
   for (const relation of schema.relations) neighbors.get(relation.toTable)!.add(relation.fromTable);
 
@@ -92,9 +93,25 @@ function pipelineLayout(schema: Schema): Positions {
   const heightOf = (tables: Schema['tables']) => tables.reduce((sum, table) => sum + tableHeight(table.columns.length), 0) + Math.max(0, tables.length - 1) * gap;
   const maxHeight = Math.max(...[...stages.values()].map(heightOf));
   const entries: [string, { x: number; y: number }][] = [];
-  for (const [stage, tables] of stages) {
+  const placedCenters = new Map<string, number>();
+  for (const [stage, tables] of [...stages].sort(([a], [b]) => a - b)) {
+    // Keep branches near their already placed parents. Stable sorting preserves
+    // schema order for unrelated tables and for cyclic groups in the same stage.
+    const parentCenter = (name: string) => {
+      const centers = schema.relations.filter(r => r.fromTable === name)
+        .map(r => placedCenters.get(r.toTable)).filter((y): y is number => y !== undefined);
+      return centers.length ? centers.reduce((sum, y) => sum + y, 0) / centers.length : Infinity;
+    };
+    if (flowchart) tables.sort((a, b) => {
+      const aCenter = parentCenter(a.name), bCenter = parentCenter(b.name);
+      return aCenter === bCenter ? 0 : aCenter < bCenter ? -1 : 1;
+    });
     let y = 30 + (maxHeight - heightOf(tables)) / 2;
-    for (const table of tables) { entries.push([table.name, { x: 30 + stage * (TABLE_WIDTH + 200), y }]); y += tableHeight(table.columns.length) + gap; }
+    for (const table of tables) {
+      entries.push([table.name, { x: 30 + stage * (TABLE_WIDTH + 200), y }]);
+      placedCenters.set(table.name, y + tableHeight(table.columns.length) / 2);
+      y += tableHeight(table.columns.length) + gap;
+    }
   }
   return Object.fromEntries(entries);
 }

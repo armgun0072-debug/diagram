@@ -11,7 +11,7 @@ import ProjectMenu from './ProjectMenu';
 import { renameWorkflowTable, type Workflow as BusinessWorkflow } from './workflow';
 import type { LayoutAlgorithm } from './layoutOptions';
 import { tableColor, renameTableColor, type TableColors } from './appearance';
-import { parseSchema, serializeSchema, validateSchema, relationId, relationLabel, type Schema, type Table } from './schema';
+import { parseSchema, serializeSchema, validateSchema, relationId, relationLabel, relationCardinalities, type Schema, type Table } from './schema';
 import { layoutSchema, TABLE_WIDTH } from './layout';
 import { useErRoutes } from './useErRoutes';
 import { connectionHandles } from './routing';
@@ -156,7 +156,7 @@ export default function App() {
     id: relationId(r), source: r.fromTable, target: r.toTable,
     sourceHandle: handles.sourceHandle, targetHandle: handles.targetHandle,
     type: 'relationship', label: relationLabel(r),
-    data: { route: route ?? { ...handles, points: [], blocked: false }, preview, hovered: hoveredEdge === relationId(r), description: `${r.fromTable}.${r.fromColumn} → ${r.toTable}.${r.toColumn} (${relationLabel(r)})` },
+    data: { route: route ?? { ...handles, points: [], blocked: false }, cardinalities: relationCardinalities(r), preview, hovered: hoveredEdge === relationId(r), description: `${r.fromTable}.${r.fromColumn} → ${r.toTable}.${r.toColumn} (${relationLabel(r)})` },
     className: hoveredEdge === relationId(r) ? 'relationship-hovered' : '',
     zIndex: hoveredEdge === relationId(r) ? 30 : selectedEdge === relationId(r) ? 10 : 0,
     selected: selectedEdge === relationId(r),
@@ -464,7 +464,8 @@ export default function App() {
         <li>คลิกเส้นแล้วกดถังขยะเพื่อลบความสัมพันธ์ในโหมด Visual</li>
         <li>ลากตารางแล้วเส้นจะตามคอลัมน์และสลับด้านเชื่อมให้อัตโนมัติ</li>
         <li>เส้นเดินหลบตารางผ่านช่องว่าง ชี้เมาส์ที่เส้นเพื่อให้เส้นวิ่งและแสดงอัตราความสัมพันธ์</li>
-        <li>เลือกจัดตำแหน่งได้ 4 แบบ: Left-right, Pipeline, Snowflake และ Compact จากเมนูจัดตำแหน่ง</li>
+        <li>เลือกจัดตำแหน่งได้ 5 แบบ: Left-right, Pipeline, Snowflake, Compact และ Flowchart ซ้าย → ขวา จากเมนูจัดตำแหน่ง</li>
+        <li>ป้าย 1 / N ที่ปลายเส้นบอกความสัมพันธ์ของตารางฝั่งนั้น; 0..1 / 0..N หมายถึงไม่จำเป็นต้องมีข้อมูลสัมพันธ์</li>
         <li>บันทึกโปรเจกต์เป็น JSON เก็บทั้งโค้ดและตำแหน่ง นำกลับเข้าด้วย “เปิดไฟล์”</li>
         <li>หลายโปรเจกต์: กดชื่อโปรเจกต์ด้านบนเพื่อสลับ สร้างใหม่ เปลี่ยนชื่อ ทำสำเนา หรือลบ ทุกโปรเจกต์เก็บในเบราว์เซอร์เครื่องนี้</li>
         <li>แชร์ลิงก์: คัดลอกลิงก์ที่บรรจุตาราง ตำแหน่ง สี และ Flowchart ผู้รับเปิดแล้วได้สำเนาเป็นโปรเจกต์ใหม่ (แก้ต่อแล้วต้องแชร์ลิงก์ใหม่)</li>

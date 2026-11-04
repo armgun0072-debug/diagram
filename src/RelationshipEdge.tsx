@@ -1,15 +1,30 @@
 import { memo } from 'react';
-import { BaseEdge, getSmoothStepPath, type Edge, type EdgeProps } from '@xyflow/react';
+import { BaseEdge, getSmoothStepPath, Position, type Edge, type EdgeProps } from '@xyflow/react';
 import type { Route } from './obstacleRouting';
 import { roundedPath } from './edgePath';
 
-export type RelationshipFlowEdge = Edge<{ route: Route; hovered: boolean; description: string; preview?: boolean }, 'relationship'>;
+export type RelationshipFlowEdge = Edge<{ route: Route; cardinalities: { source: string; target: string }; hovered: boolean; description: string; preview?: boolean }, 'relationship'>;
+
+function EndpointLabel({ x, y, side, value, active }: { x: number; y: number; side: Position; value: string; active: boolean }) {
+  const width = value.length > 1 ? 38 : 20;
+  // Labels stay outside the table and above its horizontal port stub, leaving
+  // the line and target arrow visible even when routing changes sides.
+  const centerX = x + (side === Position.Left ? -1 : 1) * (width / 2 + 5);
+  return <g className={`relationship-cardinality${active ? ' active' : ''}`} transform={`translate(${centerX},${y - 12})`} pointerEvents="none">
+    <rect x={-width / 2} y={-9} width={width} height={18} rx={4} />
+    <text textAnchor="middle" dominantBaseline="central">{value}</text>
+  </g>;
+}
 
 export default memo(function RelationshipEdge({ id, data, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, label, selected }: EdgeProps<RelationshipFlowEdge>) {
   if (!data) return null;
+  const endpointLabels = <>
+    <EndpointLabel x={sourceX} y={sourceY} side={sourcePosition} value={data.cardinalities.source} active={data.hovered || !!selected} />
+    <EndpointLabel x={targetX} y={targetY} side={targetPosition} value={data.cardinalities.target} active={data.hovered || !!selected} />
+  </>;
   if (data.preview) {
     const [path] = getSmoothStepPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
-    return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ ...style, opacity: .7 }} interactionWidth={16} />;
+    return <><title>{data.description}</title><BaseEdge id={id} path={path} markerEnd={markerEnd} style={{ ...style, opacity: .7 }} interactionWidth={16} />{endpointLabels}</>;
   }
   if (data.route.blocked || data.route.points.length < 2) return null;
   const points = data.route.points.map(p => ({ ...p }));
@@ -30,5 +45,6 @@ export default memo(function RelationshipEdge({ id, data, sourceX, sourceY, targ
       label={data.hovered || selected ? label : undefined} labelX={labelX} labelY={labelY}
       labelStyle={{ fill: '#c9f4e1', fontSize: 11, fontFamily: 'monospace' }}
       labelBgStyle={{ fill: '#17392e', fillOpacity: 1 }} labelBgPadding={[7, 4]} labelBgBorderRadius={4} />
+    {endpointLabels}
   </>;
 });

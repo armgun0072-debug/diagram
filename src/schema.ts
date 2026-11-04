@@ -16,10 +16,15 @@ export function relationOperator(r: Relation) {
   return `${r.fromOptional ? '?' : ''}${r.kind}${r.toOptional ? '?' : ''}`;
 }
 
-export function relationLabel(r: Relation) {
+export function relationCardinalities(r: Relation) {
   const left = r.kind === '-' ? '1' : 'N';
   const right = r.kind === '<>' ? 'N' : '1';
-  return `${r.fromOptional ? `0..${left}` : left} : ${r.toOptional ? `0..${right}` : right}`;
+  return { source: r.fromOptional ? `0..${left}` : left, target: r.toOptional ? `0..${right}` : right };
+}
+
+export function relationLabel(r: Relation) {
+  const { source, target } = relationCardinalities(r);
+  return `${source} : ${target}`;
 }
 
 export function validateSchema(schema: Schema): void {

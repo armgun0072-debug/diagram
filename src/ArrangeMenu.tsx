@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowRight, ChevronDown, Check, GitBranch, Grid3X3, LayoutGrid, Snowflake } from 'lucide-react';
 import { LAYOUT_OPTIONS, type LayoutAlgorithm } from './layoutOptions';
 
-const icons = { 'left-right': ArrowRight, pipeline: GitBranch, snowflake: Snowflake, compact: Grid3X3 };
+const icons = { 'left-right': ArrowRight, pipeline: GitBranch, snowflake: Snowflake, compact: Grid3X3, flowchart: GitBranch };
 
 export default function ArrangeMenu({ algorithm, busy, disabled, onSelect }: {
   algorithm: LayoutAlgorithm; busy: boolean; disabled: boolean; onSelect: (algorithm: LayoutAlgorithm) => void;
@@ -25,7 +25,7 @@ export default function ArrangeMenu({ algorithm, busy, disabled, onSelect }: {
         event.preventDefault();
         const index = event.key === 'Home' ? 0 : event.key === 'End' ? buttons.length - 1 : (current + (event.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
         buttons[index]?.focus();
-      } else if (/^[1-4]$/.test(event.key)) {
+      } else if (/^[1-9]$/.test(event.key) && Number(event.key) <= LAYOUT_OPTIONS.length) {
         event.preventDefault(); event.stopPropagation(); setOpen(false); trigger.current?.focus(); select.current(LAYOUT_OPTIONS[Number(event.key) - 1].id);
       } else if (event.key === 'Tab') setOpen(false);
     };

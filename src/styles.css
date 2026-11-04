@@ -25,6 +25,10 @@
 @keyframes relationship-flow{to{stroke-dashoffset:-26}}
 .routing-notice{position:absolute;z-index:7;left:75px;bottom:18px;max-width:calc(100% - 100px);display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #7a6541;border-radius:6px;background:#342e20;color:#dfc897;font-size:11px}
 .routing-notice svg{flex-shrink:0}.routing-notice .text-button{white-space:nowrap;color:#e6d0a2}
+.relationship-cardinality rect{fill:#182831;stroke:#6f8998;stroke-width:1}
+.relationship-cardinality text{fill:#e2eef4;font:600 11px monospace}
+.relationship-cardinality.active rect{fill:#17392e;stroke:#67d9b0}
+.relationship-cardinality.active text{fill:#c9f4e1}
 .arrange-menu{position:relative}
 .arrange-options{position:absolute;top:calc(100% + 10px);right:0;z-index:45;width:324px;max-width:calc(100vw - 24px);background:#182831;border:1px solid #3b5361;border-radius:8px;box-shadow:0 8px 24px #0005;overflow:hidden}
 .arrange-menu-title{padding:13px 15px;font-size:12px;font-weight:500;color:#e0eaee;border-bottom:1px solid #344854}
